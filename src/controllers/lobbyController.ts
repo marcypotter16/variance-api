@@ -1,7 +1,7 @@
-import { v4 as uuidv4 } from 'uuid';
 import Room from '../models/Room';
 import Player from '../models/Player';
-import { Game } from '../models/Game';
+import { Game, Topic, ProposedWord, Vote } from '../models/Game';
+import UUIDS from '../UUIDs';
 
 
 interface Socket {
@@ -39,7 +39,8 @@ class LobbyController {
   }
 
   createRoom(socket: Socket, nickname: string): PlayerData {
-    const roomId = uuidv4();
+    // const roomId = UUIDS[Math.floor(Math.random() * UUIDS.length)];
+    const roomId = 'demari'
     const player = new Player(socket.id, nickname);
     player.isHost = true;
 
@@ -120,7 +121,7 @@ class LobbyController {
     return room ? room.players : [];
   }
 
-  startGame(socketId: string): Game {
+  startGame(socketId: string, maxRounds: number = 1, minimumVariance: boolean = false): Game {
     const player = this.players.get(socketId);
     if (!player || !player.isHost) {
       throw new Error('Only host can start the game');
@@ -137,7 +138,7 @@ class LobbyController {
 
     let game = this.games.get(player.roomId);
     if (!game) {
-      game = new Game(player.roomId, player.id);
+      game = new Game(player.roomId, player.id, maxRounds, minimumVariance);
       room.players.forEach(p => game!.addPlayer(p));
       this.games.set(player.roomId, game);
     }
@@ -171,6 +172,101 @@ class LobbyController {
     socket.join(roomId);
     
     return { room, player, game };
+  }
+
+  proposeTopic(socketId: string, topicText: string): { topic: Topic; player: Player; gameState: any } {
+    const player = this.players.get(socketId);
+    if (!player) {
+      throw new Error('Player not found');
+    }
+
+    if (!player.roomId) {
+      throw new Error('Player not in a room');
+    }
+
+    const game = this.games.get(player.roomId);
+    if (!game) {
+      throw new Error('Game not found');
+    }
+
+    const topic = game.proposeTopic(player.id, topicText);
+    if (!topic) {
+      throw new Error('Cannot propose topic at this time');
+    }
+
+    return {
+      topic,
+      player,
+      gameState: game.getGameState()
+    };
+  }
+
+  proposeWord(socketId: string, word: string, relatedTopic: string): { word: ProposedWord; player: Player; gameState: any } {
+    const player = this.players.get(socketId);
+    if (!player) {
+      throw new Error('Player not found');
+    }
+
+    if (!player.roomId) {
+      throw new Error('Player not in a room');
+    }
+
+    const game = this.games.get(player.roomId);
+    if (!game) {
+      throw new Error('Game not found');
+    }
+
+    const proposedWord = game.proposeWord(player.id, word, relatedTopic);
+    if (!proposedWord) {
+      throw new Error('Cannot propose word at this time');
+    }
+
+    return {
+      word: proposedWord,
+      player,
+      gameState: game.getGameState()
+    };
+  }
+
+  voteOnWord(socketId: string, score: number): { vote: Vote; player: Player; gameState: any } {
+    const player = this.players.get(socketId);
+    if (!player) {
+      throw new Error('Player not found');
+    }
+
+    if (!player.roomId) {
+      throw new Error('Player not in a room');
+    }
+
+    const game = this.games.get(player.roomId);
+    if (!game) {
+      throw new Error('Game not found');
+    }
+
+    const vote = game.voteOnWord(player.id, score);
+    if (!vote) {
+      throw new Error('Cannot vote at this time');
+    }
+
+    return {
+      vote,
+      player,
+      gameState: game.getGameState()
+    };
+  }
+
+  getGameState(socketId: string): any {
+    const player = this.players.get(socketId);
+    if (!player || !player.roomId) {
+      throw new Error('Player not found or not in a room');
+    }
+
+    const game = this.games.get(player.roomId);
+    if (!game) {
+      throw new Error('Game not found');
+    }
+
+    return game.getGameState();
   }
 
   getRoomList(): RoomListItem[] {

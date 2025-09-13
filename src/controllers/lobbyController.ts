@@ -39,8 +39,8 @@ class LobbyController {
   }
 
   createRoom(socket: Socket, nickname: string): PlayerData {
-    // const roomId = UUIDS[Math.floor(Math.random() * UUIDS.length)];
-    const roomId = 'demari'
+    const roomId = UUIDS[Math.floor(Math.random() * UUIDS.length)];
+    // const roomId = 'demari'
     const player = new Player(socket.id, nickname);
     player.isHost = true;
 
